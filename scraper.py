@@ -31,14 +31,18 @@ class Scraper:
             'inv_data' :"http://op.responsive.net/Littlefield/Plot?data=INV&x=all",
             "s1queue"   : "http://op.responsive.net/Littlefield/Plot?data=S1Q&x=all",
             "s2queue"   : "http://op.responsive.net/Littlefield/Plot?data=S2Q&x=all",
-            "s3queue"   : "http://op.responsive.net/Littlefield/Plot?data=S3Q&x=all"
+            "s3queue"   : "http://op.responsive.net/Littlefield/Plot?data=S3Q&x=all",
+            "s1util"    : "http://op.responsive.net/Littlefield/Plot?data=S1UTIL&x=all",
+            "s2util": "http://op.responsive.net/Littlefield/Plot?data=S2UTIL&x=all",
+            "s3util": "http://op.responsive.net/Littlefield/Plot?data=S3UTIL&x=all",
         }
 
     def run(self):
         self.do_login()
         self.get_order_info()
         self.get_materials_info()
-        self.get_queues()
+        self.get_station_data()
+
         os.system("TASKKILL /F /IM chromedriver.exe >nul 2>&1") # force kill chromedriver instance, driver.quit() broke
         print "\n[+] Scraping complete!"
 
@@ -101,6 +105,44 @@ class Scraper:
 
         print order_data
 
+    def get_materials_info(self):
+        self.driver.get(self.pages['materials'])
+
+        html = self.driver.page_source
+        bs = BeautifulSoup(html, "html.parser")
+
+        # find materials data in html
+
+        print "\n--- Materials Info ---\n"
+        unit_cost = bs.find("b", text="Unit Cost: ").next_sibling.strip("\n")
+        print "[+] Unit Cost: {}".format(unit_cost)
+        order_cost = bs.find("b", text="Order Cost: ").next_sibling.strip("\n")
+        print "[+] Order Cost: {}".format(order_cost)
+        lead_time = bs.find("b", text="Lead Time:").next_sibling.strip("\n")
+        print "[+] Lead Time: {}".format(lead_time)
+        reorder_pt = bs.find("b", text="Reorder Point:").next_sibling.replace("\n", " ")
+        print "[+] Reorder Point: {}".format(reorder_pt)
+        order_q = bs.find("b", text="Order Quantity:").next_sibling.replace("\n", " ")
+        print "[+] Order Quantity: {}".format(order_q)
+
+        inv_data = self.scrape_table_data(category="inv_data")
+
+        print inv_data
+
+    def get_station_data(self):
+        print "\n[+] Getting queue data..."
+
+        s1q = self.scrape_table_data(category="s1queue")
+        s1u = self.scrape_table_data(category="s1util")
+        s2q = self.scrape_table_data(category="s2queue")
+        s2u = self.scrape_table_data(category="s2util")
+        s3q = self.scrape_table_data(category="s3queue")
+        s3u = self.scrape_table_data(category="s3util")
+
+        print "S1Q: {}\nS1U: {}\nS2Q: {}\nS2U: {}\nS3Q: {}\nS3U: {}\n".format(s1q,s1u,s2q,s2u,s3q,s3u)
+
+        return (s1q, s1u, s2q, s2u, s3q, s3u)
+
     def scrape_table_data(self, category):
 
         self.driver.get(self.pages[category])
@@ -139,41 +181,6 @@ class Scraper:
             table_data['data'].append(groups.group(2))
 
         return table_data
-
-    def get_materials_info(self):
-        self.driver.get(self.pages['materials'])
-
-        html = self.driver.page_source
-        bs = BeautifulSoup(html, "html.parser")
-
-        # find materials data in html
-
-        print "\n--- Materials Info ---\n"
-        unit_cost = bs.find("b", text="Unit Cost: ").next_sibling.strip("\n")
-        print "[+] Unit Cost: {}".format(unit_cost)
-        order_cost = bs.find("b", text="Order Cost: ").next_sibling.strip("\n")
-        print "[+] Order Cost: {}".format(order_cost)
-        lead_time = bs.find("b", text="Lead Time:").next_sibling.strip("\n")
-        print "[+] Lead Time: {}".format(lead_time)
-        reorder_pt = bs.find("b", text="Reorder Point:").next_sibling.replace("\n", " ")
-        print "[+] Reorder Point: {}".format(reorder_pt)
-        order_q = bs.find("b", text="Order Quantity:").next_sibling.replace("\n", " ")
-        print "[+] Order Quantity: {}".format(order_q)
-
-        inv_data = self.scrape_table_data(category="inv_data")
-
-        print inv_data
-
-    def get_queues(self):
-        print "[+] Getting queue data..."
-
-        s1q = self.scrape_table_data(category="s1queue")
-        s2q = self.scrape_table_data(category="s2queue")
-        s3q = self.scrape_table_data(category="s3queue")
-
-        print s1q
-        print s2q
-        print s3q
 
 if __name__ == "__main__":
     print "[+] Initiating Littlefield Data Scraping..."
