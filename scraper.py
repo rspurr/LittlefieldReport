@@ -15,14 +15,14 @@ class Scraper:
     def __init__(self):
         self.web = webdriver.Chrome
         options = Options()
-        options.add_argument("--headless")
-        options.binary_location = "C:\\Users\\ryan\\AppData\\Local\\Google\\Chrome SxS\\Application\\chrome.exe"
-        driver_path = "C:\\Users\\ryan\\Desktop\\chromedriver_win32\\chromedriver.exe"
+        options.add_argument("--headless")  # run chrome in headless mode
+        options.binary_location = ""
+        driver_path = ""
         self.driver = webdriver.Chrome(executable_path=driver_path,
                                        chrome_options=options)
 
-        self.user = "wealreadywon"
-        self.pw = "mijury"
+        self.user = ""
+        self.pw = ""
 
         self.pages = {
             'login' : "http://op.responsive.net/lt/groenevelt/entry.html",
@@ -133,6 +133,8 @@ class Scraper:
         html = self.driver.page_source
         bs = BeautifulSoup(html, "html.parser")
 
+        # find materials data in html
+
         print "\n--- Materials Info ---\n"
         unit_cost = bs.find("b", text="Unit Cost: ").next_sibling.strip("\n")
         print "[+] Unit Cost: {}".format(unit_cost)
@@ -146,7 +148,6 @@ class Scraper:
         print "[+] Order Quantity: {}".format(order_q)
 
         self.driver.get(self.pages['inv_data'])
-
         self.driver.find_element_by_name("data").click()
 
         html = self.driver.page_source
