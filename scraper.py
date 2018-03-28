@@ -36,15 +36,13 @@ class Scraper:
         self.do_login()
         self.get_order_info()
         self.get_materials_info()
-        os.system("TASKKILL /F /IM chromedriver.exe >nul 2>&1")
+        os.system("TASKKILL /F /IM chromedriver.exe >nul 2>&1") # force kill chromedriver instance, driver.quit() broke
         print "\n[+] Scraping complete!"
 
     def do_login(self):
         self.driver.get(self.pages['login'])
 
         print "[+] Logging in..."
-
-        html = self.driver.page_source
 
         user = self.driver.find_element_by_name("id")
         user.click()
