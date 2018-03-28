@@ -12,30 +12,33 @@ import pandas as pd
 
 class Scraper:
 
-    def __init__(self):
-        self.web = webdriver.Chrome
+    def __init__(self, driver_path, user, pw):
+
         options = Options()
         options.add_argument("--headless")  # run chrome in headless mode
-        options.binary_location = ""
-        driver_path = ""
+        driver_path = driver_path
         self.driver = webdriver.Chrome(executable_path=driver_path,
                                        chrome_options=options)
 
-        self.user = ""
-        self.pw = ""
+        self.user = user
+        self.pw = pw
 
         self.pages = {
             'login' : "http://op.responsive.net/lt/groenevelt/entry.html",
             'orders': "http://op.responsive.net/Littlefield/OrdersMenu",
             'order_data' : "http://op.responsive.net/Littlefield/Plot?data=JOBIN&x=all",
             'materials': "http://op.responsive.net/Littlefield/MaterialMenu",
-            'inv_data' :"http://op.responsive.net/Littlefield/Plot?data=INV&x=all"
+            'inv_data' :"http://op.responsive.net/Littlefield/Plot?data=INV&x=all",
+            "s1queue"   : "http://op.responsive.net/Littlefield/Plot?data=S1Q&x=all",
+            "s2queue"   : "http://op.responsive.net/Littlefield/Plot?data=S2Q&x=all",
+            "s3queue"   : "http://op.responsive.net/Littlefield/Plot?data=S3Q&x=all"
         }
 
     def run(self):
         self.do_login()
         self.get_order_info()
         self.get_materials_info()
+        self.get_queues()
         os.system("TASKKILL /F /IM chromedriver.exe >nul 2>&1") # force kill chromedriver instance, driver.quit() broke
         print "\n[+] Scraping complete!"
 
@@ -93,37 +96,49 @@ class Scraper:
         curr_contract = bs.find("b", text="Current contract: ").next_sibling
         print "[+] Current contract: {}".format(curr_contract)
 
-        order_data = {"days": [],
-                      "data": []}
 
-        self.driver.get(self.pages['order_data'])
+        order_data = self.scrape_table_data(category="order_data")
+
+        print order_data
+
+    def scrape_table_data(self, category):
+
+        self.driver.get(self.pages[category])
 
         self.driver.find_element_by_name("data").click()
 
-        html = self.driver.page_source
-        bs = BeautifulSoup(html, "html.parser")
+        table_data =  {"type": category,
+                      "days": [],
+                      "data": []}
+
+        bs = BeautifulSoup(self.driver.page_source, "html.parser")
 
         # scrape js and find data section
 
+        regex = "([0-9]* [0-9]+\.*[0-9]*)*"
+
         script = bs.find_all("script")
-        pattern = re.compile("points: '([0-9]* [0-9]*)*")
+        pattern = re.compile("points: '" + regex)
         data = pattern.search(str(script))
-        data_str = data.group(0)
-        data_str = data_str[9:]
+        data_str = data.group(0)[9:]
 
-        # use regex to find repeating numbers
+        # use regex to find repeating numbers, ints or floats
+        repeating_regex = "[0-9]+ [0-9]+\.*[0-9]*"
 
-        match_ptrn = re.compile("[0-9]+ [0-9]+")
+        match_ptrn = re.compile(repeating_regex)
         matches = match_ptrn.findall(data_str)
 
         for match in matches:
-            group_ptrn = re.compile("([0-9]+) ([0-9]+)")
+            # split pairs into respective arrays
+            grp_regex = "([0-9]+) ([0-9]+\.*[0-9]*)"
+
+            group_ptrn = re.compile(grp_regex)
             groups = group_ptrn.match(match)
 
-            order_data['days'].append(groups.group(1))
-            order_data['data'].append(groups.group(2))
+            table_data['days'].append(groups.group(1))
+            table_data['data'].append(groups.group(2))
 
-        print order_data
+        return table_data
 
     def get_materials_info(self):
         self.driver.get(self.pages['materials'])
@@ -145,44 +160,26 @@ class Scraper:
         order_q = bs.find("b", text="Order Quantity:").next_sibling.replace("\n", " ")
         print "[+] Order Quantity: {}".format(order_q)
 
-        self.driver.get(self.pages['inv_data'])
-        self.driver.find_element_by_name("data").click()
-
-        html = self.driver.page_source
-        bs = BeautifulSoup(html, "html.parser")
-
-        script = bs.find_all("script")
-
-        # scrape js and find data section
-
-        pattern = re.compile("points: '([0-9]* [0-9]*)*")
-        data = pattern.search(str(script))
-        data_str = data.group(0)
-        data_str = data_str[9:]
-
-        # use regex to find repeating numbers
-
-        match_ptrn = re.compile("[0-9]+ [0-9]+")
-        matches = match_ptrn.findall(data_str)
-
-        inv_data = {"days": [],
-                    "data": []}
-
-        # get groups of numbers and add to respective arrays
-
-        for match in matches:
-            group_ptrn = re.compile("([0-9]+) ([0-9]+)")
-            groups = group_ptrn.match(match)
-
-            inv_data['days'].append(groups.group(1))
-            inv_data['data'].append(groups.group(2))
+        inv_data = self.scrape_table_data(category="inv_data")
 
         print inv_data
 
+    def get_queues(self):
+        print "[+] Getting queue data..."
+
+        s1q = self.scrape_table_data(category="s1queue")
+        s2q = self.scrape_table_data(category="s2queue")
+        s3q = self.scrape_table_data(category="s3queue")
+
+        print s1q
+        print s2q
+        print s3q
 
 if __name__ == "__main__":
     print "[+] Initiating Littlefield Data Scraping..."
 
-    scraper = Scraper()
+    scraper = Scraper(driver_path="",
+                      user="",
+                      pw="")
     scraper.run()
 
